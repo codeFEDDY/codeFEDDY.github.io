@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 600">
+  <defs><linearGradient id="g" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#49f7ff"/><stop offset="1" stop-color="#c6ff42"/></linearGradient></defs>
+  <rect width="900" height="600" fill="#070708"/>
+  <circle cx="150" cy="105" r="260" fill="#49f7ff" opacity=".22"/>
+  <circle cx="760" cy="135" r="300" fill="#c6ff42" opacity=".18"/>
+  <rect x="58" y="58" width="784" height="484" rx="42" fill="rgba(255,255,255,.06)" stroke="#fff8ec" stroke-opacity=".18" stroke-width="3"/>
+  <text x="84" y="145" font-family="Arial Black, Arial, sans-serif" font-size="48" fill="#fff8ec" letter-spacing="-2">DELTA 8 THC VAPE</text>
+<text x="84" y="203" font-family="Arial Black, Arial, sans-serif" font-size="48" fill="#fff8ec" letter-spacing="-2">CART</text>
+  <circle cx="668" cy="302" r="105" fill="url(#g)" opacity=".88"/>
+  <path d="M620 310 l38 42 72 -96" fill="none" stroke="#070708" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="84" y="468" font-family="Arial, sans-serif" font-size="32" fill="#49f7ff" font-weight="800">CANNACLEAR · CODE FEDDY</text>
+  <text x="84" y="510" font-family="Arial Black, Arial, sans-serif" font-size="32" fill="#fff8ec">15% OFF</text>
+</svg>

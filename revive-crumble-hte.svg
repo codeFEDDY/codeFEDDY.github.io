@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 600">
+  <defs><linearGradient id="g" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#ffd36a"/><stop offset="1" stop-color="#ff6b00"/></linearGradient></defs>
+  <rect width="900" height="600" fill="#070708"/>
+  <circle cx="165" cy="115" r="260" fill="#ff6b00" opacity=".22"/>
+  <circle cx="760" cy="145" r="300" fill="#ffd36a" opacity=".13"/>
+  <rect x="58" y="58" width="784" height="484" rx="42" fill="rgba(255,255,255,.06)" stroke="#fff8ec" stroke-opacity=".18" stroke-width="3"/>
+  <circle cx="460" cy="300" r="126" fill="none" stroke="#fff8ec" stroke-opacity=".5" stroke-width="14"/>
+  <path d="M388 306 C420 240 495 240 536 298 C516 356 440 374 388 306z" fill="url(#g)" opacity=".90"/>
+  <path d="M410 282 C445 264 490 270 510 306" stroke="#fff8ec" stroke-opacity=".35" stroke-width="12" stroke-linecap="round"/>
+  <text x="82" y="124" font-family="Arial Black, Arial, sans-serif" font-size="50" fill="#fff8ec" letter-spacing="-2">FEATURED</text>
+  <text x="82" y="180" font-family="Arial Black, Arial, sans-serif" font-size="50" fill="#fff8ec" letter-spacing="-2">LIP BALM</text>
+  <text x="82" y="236" font-family="Arial Black, Arial, sans-serif" font-size="50" fill="#fff8ec" letter-spacing="-2">PRODUCT</text>
+  <text x="84" y="470" font-family="Arial, sans-serif" font-size="34" fill="#ffd36a" font-weight="800">CRUMBLE WITH HTE · FEDDY</text>
+</svg>

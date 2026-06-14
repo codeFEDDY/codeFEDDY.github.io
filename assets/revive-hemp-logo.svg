@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 600">
+  <defs>
+    <linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#d7ff68"/>
+      <stop offset=".55" stop-color="#20d37b"/>
+      <stop offset="1" stop-color="#ffd36a"/>
+    </linearGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="10" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <rect width="900" height="600" rx="48" fill="#070908"/>
+  <circle cx="130" cy="90" r="220" fill="#20d37b" opacity=".24"/>
+  <circle cx="760" cy="110" r="260" fill="#ffd36a" opacity=".20"/>
+  <path d="M446 112c48 44 78 94 78 151 0 91-65 165-78 182-13-17-78-91-78-182 0-57 30-107 78-151Z" fill="url(#g)" filter="url(#glow)" opacity=".9"/>
+  <path d="M446 156c-36 49-48 102-20 164 8 18 15 34 20 51 5-17 12-33 20-51 28-62 16-115-20-164Z" fill="#071008" opacity=".72"/>
+  <text x="450" y="438" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-size="92" fill="#fff8ec" letter-spacing="-6">REVIVE</text>
+  <text x="450" y="494" text-anchor="middle" font-family="Arial, sans-serif" font-size="34" fill="#d7ff68" font-weight="800" letter-spacing="8">HEMP STORE</text>
+</svg>

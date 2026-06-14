@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 600">
+  <defs><linearGradient id="g" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#49f7ff"/><stop offset="1" stop-color="#c6ff42"/></linearGradient></defs>
+  <rect width="900" height="600" fill="#070708"/>
+  <circle cx="150" cy="100" r="260" fill="#49f7ff" opacity=".18"/>
+  <circle cx="760" cy="120" r="300" fill="#c6ff42" opacity=".14"/>
+  <rect x="58" y="58" width="784" height="484" rx="42" fill="rgba(255,255,255,.06)" stroke="#fff8ec" stroke-opacity=".18" stroke-width="3"/>
+  <g transform="translate(440 280)">
+    <polygon points="0,-120 95,-35 58,95 -58,95 -95,-35" fill="#fff8ec" opacity=".82"/>
+    <polygon points="-18,-68 45,-22 24,52 -35,42 -58,-20" fill="#c6ff42" opacity=".5"/>
+    <polygon points="62,-88 120,-36 88,54 28,42 18,-24" fill="#fff8ec" opacity=".54"/>
+  </g>
+  <text x="82" y="120" font-family="Arial Black, Arial, sans-serif" font-size="50" fill="#fff8ec" letter-spacing="-2">FEATURED</text>
+  <text x="82" y="176" font-family="Arial Black, Arial, sans-serif" font-size="50" fill="#fff8ec" letter-spacing="-2">LIP BALM</text>
+  <text x="82" y="232" font-family="Arial Black, Arial, sans-serif" font-size="50" fill="#fff8ec" letter-spacing="-2">PRODUCT</text>
+  <text x="84" y="470" font-family="Arial, sans-serif" font-size="34" fill="#c6ff42" font-weight="800">BULK THCA DIAMONDS · FEDDY</text>
+</svg>

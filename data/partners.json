@@ -1,0 +1,69 @@
+[
+  {
+    "id": "revive-hemp-store-10-off",
+    "name": "Revive Hemp Store",
+    "vendor": "Revive Hemp",
+    "category": "Trusted Partners",
+    "type": "Trusted Lipbalm Provider",
+    "description": "Trusted partner discount. Use code FEDDY for 10% off at Revive Hemp Store.",
+    "code": "FEDDY",
+    "perk": "10% off",
+    "url": "https://revivehemp.store/discount/FEDDY?redirect=/collections/all",
+    "image": "assets/vendor-logos/revive-store-card-art.png",
+    "fallbackImage": "assets/drop-placeholder.svg",
+    "tags": [
+      "Revive Hemp",
+      "10% off",
+      "AWIN",
+      "top offer"
+    ],
+    "featured": 1000,
+    "displayName": "Revive Hemp Store",
+    "ctaLabel": "Open with FEDDY applied",
+    "quickMessage": "Click to shop with code FEDDY auto applied to your cart."
+  },
+  {
+    "id": "the-delta-connect-15-off",
+    "name": "The Delta Connect",
+    "vendor": "The Delta Connect",
+    "category": "Trusted Partners",
+    "type": "Trusted Lipbalm Provider",
+    "description": "Trusted partner discount. Use code FEDDY for 15% off at The Delta Connect.",
+    "code": "FEDDY",
+    "perk": "15% off",
+    "url": "https://thedeltaconnect.com/discount/FEDDY?redirect=/collections/all",
+    "image": "assets/vendor-logos-processed/delta-connect-logo-card.png",
+    "fallbackImage": "assets/drop-placeholder.svg",
+    "tags": [
+      "The Delta Connect",
+      "15% off",
+      "rank #3"
+    ],
+    "featured": 980,
+    "displayName": "The Delta Connect",
+    "ctaLabel": "Open with FEDDY applied",
+    "quickMessage": "Click to shop with code FEDDY auto applied to your cart."
+  },
+  {
+    "id": "cannaclear-15-off",
+    "name": "CannaClear",
+    "vendor": "CannaClear",
+    "category": "Trusted Partners",
+    "type": "Trusted Lipbalm Provider",
+    "description": "Trusted partner discount. Use code FEDDY for 15% off at CannaClear.",
+    "code": "FEDDY",
+    "perk": "15% off",
+    "url": "https://cannaclear.com/?coupon_code=FEDDY&utm_source=codefeddy&utm_medium=affiliate&utm_campaign=feddy&coupon=FEDDY&code=FEDDY",
+    "image": "assets/vendor-logos-processed/cannaclear-logo-card.png",
+    "fallbackImage": "assets/drop-placeholder.svg",
+    "tags": [
+      "CannaClear",
+      "15% off",
+      "rank #2"
+    ],
+    "featured": 990,
+    "displayName": "CannaClear",
+    "ctaLabel": "Open offer",
+    "quickMessage": "Click to shop"
+  }
+]
