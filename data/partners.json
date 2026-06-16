@@ -20,7 +20,7 @@
     "featured": 1000,
     "displayName": "Revive Hemp Store",
     "ctaLabel": "Open with FEDDY applied",
-    "quickMessage": "Click to shop with code FEDDY auto applied to your cart."
+    "quickMessage": "Click to shop with code FEDDY auto applied to your cart for 10% off"
   },
   {
     "id": "the-delta-connect-15-off",
@@ -42,7 +42,7 @@
     "featured": 980,
     "displayName": "The Delta Connect",
     "ctaLabel": "Open with FEDDY applied",
-    "quickMessage": "Click to shop with code FEDDY auto applied to your cart."
+    "quickMessage": "Click to shop with code FEDDY auto applied to your cart for 15% off"
   },
   {
     "id": "cannaclear-15-off",
@@ -64,6 +64,6 @@
     "featured": 990,
     "displayName": "CannaClear",
     "ctaLabel": "Open offer",
-    "quickMessage": "Click to shop"
+    "quickMessage": "Click to shop and manually type in code FEDDY at checkout for 15% off"
   }
 ]

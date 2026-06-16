@@ -632,3 +632,22 @@ body.age-locked {
 
 .card-media::after{content:"";position:absolute;inset:0;border-radius:18px;background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,0) 35%,rgba(0,0,0,.06));pointer-events:none}
 .drop-card{backdrop-filter:blur(12px)}
+
+
+/* v42 footer counter expansion */
+.footer-metrics {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 10px 14px !important;
+  justify-content: flex-end !important;
+}
+
+.footer-metrics span {
+  white-space: nowrap !important;
+}
+
+@media (max-width: 860px) {
+  .footer-metrics {
+    justify-content: flex-start !important;
+  }
+}
