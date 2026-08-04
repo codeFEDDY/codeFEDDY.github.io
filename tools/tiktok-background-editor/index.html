@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#05060a">
+  <meta name="description" content="Make exact transparent TikTok LIVE overlays locally. True alpha-zero PNG export with pixel-level verification.">
+  <title>CodeFEDDY TikTok Background Editor</title>
+  <link rel="icon" href="../../assets/codefeddy-homepage-logo.png" type="image/png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="../shared.css?v=1">
+  <link rel="stylesheet" href="editor.css?v=1">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="../../" aria-label="CodeFEDDY home">
+      <img src="../../assets/codefeddy-homepage-logo.png" alt="">
+      <span>CODE FEDDY<small>TIKTOK BACKGROUND EDITOR</small></span>
+    </a>
+    <nav class="site-nav" aria-label="Primary">
+      <a href="../../">Home</a>
+      <a href="../" aria-current="page">Tools</a>
+      <a href="#editor">Editor</a>
+      <a href="#png-verifier">PNG verifier</a>
+    </nav>
+  </header>
+
+  <main class="shell editor-shell">
+    <section class="editor-hero">
+      <div>
+        <p class="eyebrow">Exact transparent overlays for TikTok LIVE</p>
+        <h1>Cut the window. <span>Keep every other pixel.</span></h1>
+        <p class="lede">This tool changes alpha values inside one exact rectangle. It does not redraw faces, rewrite text, invent dimensions, or upload your images anywhere.</p>
+        <div class="badge-row" aria-label="Product classification">
+          <span class="badge">SELF_CONTAINED</span>
+          <span class="badge">No API key</span>
+          <span class="badge">$0 per image</span>
+          <span class="badge">No AI model</span>
+        </div>
+      </div>
+      <aside class="pipeline-card" aria-label="Deterministic export pipeline">
+        <p class="card-kicker">Export-critical pipeline</p>
+        <ol>
+          <li><strong>RGBA decode</strong><span>Read the original pixel buffer.</span></li>
+          <li><strong>Exact rectangle</strong><span>Use integers with an exclusive right and bottom edge.</span></li>
+          <li><strong>Alpha zero</strong><span>Set only interior alpha bytes to 0.</span></li>
+          <li><strong>Verify</strong><span>Reject the export if validation fails.</span></li>
+        </ol>
+      </aside>
+    </section>
+
+    <section class="workspace" id="editor" aria-labelledby="editor-title">
+      <div class="workspace-heading">
+        <div>
+          <p class="eyebrow">Browser editor</p>
+          <h2 id="editor-title">Build the transparent webcam window</h2>
+        </div>
+        <div class="button-row">
+          <button class="button" id="installButton" type="button" hidden>Install editor</button>
+          <span class="local-status"><span aria-hidden="true"></span>Files stay on this device</span>
+        </div>
+      </div>
+
+      <div class="step-grid">
+        <section class="card control-card" aria-labelledby="step-one">
+          <span class="step-number">01</span>
+          <h3 id="step-one">Load the overlay</h3>
+          <p>The overlay is the only source of output pixels. PNG is required for lossless preservation.</p>
+          <label class="file-drop" for="overlayInput">
+            <strong>Choose overlay</strong>
+            <span>Single-frame PNG</span>
+            <input id="overlayInput" type="file" accept="image/png">
+          </label>
+          <div class="file-meta" id="overlayMeta" aria-live="polite">No overlay loaded.</div>
+        </section>
+
+        <section class="card control-card" aria-labelledby="step-two">
+          <span class="step-number">02</span>
+          <h3 id="step-two">Load a reference</h3>
+          <p>Optional. Draw the webcam box on a screenshot and copy its geometry.</p>
+          <label class="file-drop" for="referenceInput">
+            <strong>Choose reference</strong>
+            <span>Any browser-readable image</span>
+            <input id="referenceInput" type="file" accept="image/png,image/webp,image/jpeg">
+          </label>
+          <div class="file-meta" id="referenceMeta" aria-live="polite">No reference loaded. Draw directly on the overlay instead.</div>
+        </section>
+
+        <section class="card control-card" aria-labelledby="step-three">
+          <span class="step-number">03</span>
+          <h3 id="step-three">Map the rectangle</h3>
+          <label class="field-label" for="mappingMode">When dimensions differ</label>
+          <select id="mappingMode">
+            <option value="scale">Scale proportionally to the overlay</option>
+            <option value="exact">Use the same pixel coordinates</option>
+          </select>
+          <p class="field-help" id="mappingHelp">The tool reports the scale and both coordinate sets.</p>
+        </section>
+      </div>
+
+      <div class="canvas-grid">
+        <section class="card canvas-card">
+          <div class="canvas-card-head">
+            <div>
+              <span class="card-kicker">Source</span>
+              <h3>Overlay</h3>
+            </div>
+            <button class="target-button active" id="drawOverlayButton" type="button" aria-pressed="true">Draw here</button>
+          </div>
+          <div class="canvas-stage empty" id="overlayStage">
+            <canvas id="overlayCanvas" width="540" height="960" aria-label="Overlay image selection canvas"></canvas>
+            <div class="selection-box" id="overlaySelection" hidden aria-hidden="true"></div>
+            <p class="empty-message">Upload an overlay to begin.</p>
+          </div>
+          <p class="canvas-hint">Drag to draw. Use the coordinate fields below for exact values.</p>
+        </section>
+
+        <section class="card canvas-card">
+          <div class="canvas-card-head">
+            <div>
+              <span class="card-kicker">Optional guide</span>
+              <h3>Reference</h3>
+            </div>
+            <button class="target-button" id="drawReferenceButton" type="button" aria-pressed="false" disabled>Draw here</button>
+          </div>
+          <div class="canvas-stage empty" id="referenceStage">
+            <canvas id="referenceCanvas" width="540" height="960" aria-label="Reference image selection canvas"></canvas>
+            <div class="selection-box reference" id="referenceSelection" hidden aria-hidden="true"></div>
+            <p class="empty-message">Optional reference screenshot.</p>
+          </div>
+          <p class="canvas-hint" id="referenceHint">A reference can have different dimensions from the overlay.</p>
+        </section>
+
+        <section class="card canvas-card output-card">
+          <div class="canvas-card-head">
+            <div>
+              <span class="card-kicker">Live result</span>
+              <h3>Transparent output</h3>
+            </div>
+            <span class="output-status waiting" id="outputStatus">Waiting</span>
+          </div>
+          <div class="canvas-stage checker empty" id="outputStage">
+            <canvas id="outputCanvas" width="540" height="960" aria-label="Transparent output preview"></canvas>
+            <p class="empty-message">The verified output appears here.</p>
+          </div>
+          <p class="canvas-hint">Checkerboard pixels are genuinely transparent in the preview.</p>
+        </section>
+      </div>
+
+      <section class="card geometry-card" aria-labelledby="geometry-title">
+        <div class="geometry-head">
+          <div>
+            <p class="card-kicker">Pixel geometry</p>
+            <h3 id="geometry-title">Transparent rectangle</h3>
+          </div>
+          <p>Coordinates use <code>x, y, width, height</code>. Right and bottom edges are exclusive.</p>
+        </div>
+        <div class="coordinate-grid">
+          <label>X <input id="boxX" type="number" min="0" step="1" value="0" inputmode="numeric"></label>
+          <label>Y <input id="boxY" type="number" min="0" step="1" value="0" inputmode="numeric"></label>
+          <label>Width <input id="boxWidth" type="number" min="1" step="1" value="1" inputmode="numeric"></label>
+          <label>Height <input id="boxHeight" type="number" min="1" step="1" value="1" inputmode="numeric"></label>
+        </div>
+        <div class="dimension-warning" id="dimensionWarning" aria-live="polite">Load an overlay to set the rectangle.</div>
+      </section>
+
+      <section class="card report-card" aria-labelledby="report-title">
+        <div class="report-head">
+          <div>
+            <p class="card-kicker">Required validation</p>
+            <h3 id="report-title">RGBA export report</h3>
+          </div>
+          <div class="button-row">
+            <button class="button" id="verifyButton" type="button" disabled>Verify encoded PNG</button>
+            <button class="button" id="copyReportButton" type="button" disabled>Copy report</button>
+            <button class="button primary" id="downloadButton" type="button" disabled>Download verified PNG</button>
+          </div>
+        </div>
+
+        <div class="report-summary" id="reportSummary" aria-live="polite">
+          <div><span>Canvas</span><strong id="reportCanvas">—</strong></div>
+          <div><span>Transparent box</span><strong id="reportBox">—</strong></div>
+          <div><span>Interior alpha</span><strong id="reportInteriorAlpha">—</strong></div>
+          <div><span>Full alpha</span><strong id="reportFullAlpha">—</strong></div>
+          <div><span>Outside changes</span><strong id="reportOutside">—</strong></div>
+          <div><span>PNG format</span><strong id="reportFormat">Not encoded</strong></div>
+          <div><span>Result</span><strong id="reportResult">Waiting</strong></div>
+        </div>
+        <details>
+          <summary>Machine-readable report</summary>
+          <pre id="reportJson">{}</pre>
+        </details>
+      </section>
+    </section>
+
+    <section class="workspace verifier-workspace" id="png-verifier" aria-labelledby="verifier-title">
+      <div class="workspace-heading">
+        <div>
+          <p class="eyebrow">Independent check</p>
+          <h2 id="verifier-title">Transparent PNG verifier</h2>
+        </div>
+        <p class="workspace-copy">Drop an exported PNG here. The verifier decodes it separately and checks its actual PNG color type and alpha channel.</p>
+      </div>
+      <div class="verifier-grid">
+        <label class="file-drop large" for="verifyInput">
+          <strong>Choose PNG to inspect</strong>
+          <span>Nothing is uploaded</span>
+          <input id="verifyInput" type="file" accept="image/png">
+        </label>
+        <div class="card verifier-result" id="verifierResult" aria-live="polite">
+          <span class="card-kicker">Inspection result</span>
+          <p>No PNG selected.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="method-section" aria-labelledby="method-title">
+      <div>
+        <p class="eyebrow">What this tool does</p>
+        <h2 id="method-title">Deterministic means boring in the best possible way.</h2>
+      </div>
+      <div class="method-grid">
+        <article class="card"><strong>Changes</strong><p>Only alpha bytes inside the selected rectangle.</p></article>
+        <article class="card"><strong>Preserves</strong><p>Every RGBA channel outside the rectangle and every RGB channel inside it.</p></article>
+        <article class="card"><strong>Requires</strong><p>A modern browser. No server, login, API key, or AI model.</p></article>
+        <article class="card"><strong>Privacy</strong><p>File processing happens in browser memory on your device.</p></article>
+        <article class="card"><strong>Limits</strong><p>8-bit single-frame PNG overlays up to 30 million pixels. References may be PNG, WebP, or JPEG.</p></article>
+      </div>
+      <p class="version-line">Version 1.0.0 · Updated August 4, 2026 · Core classification: SELF_CONTAINED · <a href="https://github.com/codeFEDDY/codeFEDDY.github.io/tree/main/tools/tiktok-background-editor">Source on GitHub</a></p>
+    </section>
+  </main>
+
+  <footer class="site-footer shell">
+    <span>CodeFEDDY TikTok Background Editor</span>
+    <a href="../">Return to all tools</a>
+  </footer>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="vendor/pako.min.js"></script>
+  <script src="vendor/upng.js"></script>
+  <script type="module" src="app.js?v=2"></script>
+</body>
+</html>

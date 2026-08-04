@@ -957,6 +957,8 @@ const CODE_FEDDY_DROPS = [
   }
 ];
 
+const $ = selector => document.querySelector(selector);
+
 const state = {
   drops: CODE_FEDDY_DROPS.slice(),
   partners: CODE_FEDDY_PARTNERS.slice(),

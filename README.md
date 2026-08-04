@@ -1,5 +1,25 @@
 # CODE FEDDY v7 refreshable Lovable stats
 
+## CodeFEDDY TikTok Background Editor
+
+The production site now includes a local-first tools directory and deterministic TikTok LIVE overlay editor:
+
+- `/tools/`
+- `/tools/tiktok-background-editor/`
+
+The editor accepts an 8-bit single-frame overlay PNG plus an optional reference screenshot. It maps or draws an integer webcam rectangle, changes only interior alpha bytes, encodes a lossless RGBA PNG with bundled local libraries, and blocks download unless verification passes.
+
+Runtime classification: `SELF_CONTAINED`. No API key, server, image model, upload service, or per-image cost.
+
+Validation:
+
+```bash
+npm test
+npm run check:editor
+```
+
+Third-party codec licenses are stored beside the vendored browser files under `tools/tiktok-background-editor/vendor/`.
+
 This build adds a Refresh TikTok stats button and a GitHub Action deep sync.
 
 Public button: refreshes latest synced JSON and tries direct Lovable page read if browser allows it.
