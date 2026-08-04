@@ -451,3 +451,185 @@ button.button {
     flex-direction: column;
   }
 }
+
+/* CodeFEDDY.com visual system -------------------------------------------------
+   Keep creator tools in the same public brand family as the main site. */
+:root {
+  --bg: #070708;
+  --panel: rgba(13, 13, 16, 0.72);
+  --panel-strong: rgba(18, 16, 18, 0.94);
+  --line: rgba(255, 248, 236, 0.15);
+  --text: #fff8ec;
+  --ink: #fff8ec;
+  --muted: rgba(255, 248, 236, 0.70);
+  --cyan: #ffd36a;
+  --cyan-dark: #ff6b00;
+  --orange: #ff6b00;
+  --gold: #ffd36a;
+  --acid: #c6ff42;
+  --pink: #ff4fd8;
+  --green: #c6ff42;
+  --danger: #ff6b87;
+  --shadow: 0 32px 120px rgba(0, 0, 0, 0.62);
+}
+
+body {
+  color: var(--ink);
+  background:
+    linear-gradient(to bottom, rgba(7, 7, 8, 0.42), rgba(7, 7, 8, 0.78)),
+    radial-gradient(circle at 14% 8%, rgba(255, 79, 216, 0.30), transparent 28rem),
+    radial-gradient(circle at 86% 10%, rgba(255, 107, 0, 0.34), transparent 30rem),
+    radial-gradient(circle at 64% 88%, rgba(198, 255, 66, 0.14), transparent 34rem),
+    #070708;
+}
+
+body::before {
+  opacity: 0.30;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.055) 1px, transparent 1px);
+  background-size: 66px 66px;
+}
+
+.site-header {
+  top: 12px;
+  width: min(1180px, calc(100% - 24px));
+  min-height: 58px;
+  margin: 12px auto 0;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(7, 7, 8, 0.64);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(22px);
+}
+
+.brand {
+  gap: 0;
+  padding-left: 13px;
+  font-weight: 1000;
+  letter-spacing: -0.055em;
+}
+
+.brand img {
+  display: none;
+}
+
+.brand small {
+  margin-top: 1px;
+  color: var(--gold);
+  font-size: 0.6rem;
+  letter-spacing: 0.14em;
+}
+
+.site-nav a {
+  padding: 9px 13px;
+  color: var(--muted);
+  font-weight: 900;
+}
+
+.site-nav a:hover,
+.site-nav a[aria-current="page"] {
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.site-nav a:last-child {
+  color: #160b03;
+  background: linear-gradient(135deg, var(--gold), var(--orange), var(--pink));
+}
+
+:focus-visible {
+  outline-color: var(--gold);
+}
+
+.eyebrow,
+.card-kicker {
+  color: var(--gold);
+  font-weight: 1000;
+}
+
+h1 {
+  text-transform: uppercase;
+  text-shadow: 0 0 38px rgba(255, 107, 0, 0.22), 0 16px 80px rgba(0, 0, 0, 0.72);
+}
+
+h1 span {
+  background: linear-gradient(100deg, var(--gold), var(--orange) 52%, var(--pink));
+  background-clip: text;
+  -webkit-background-clip: text;
+}
+
+.badge {
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.065);
+}
+
+.badge::before {
+  background: var(--acid);
+  box-shadow: 0 0 18px var(--acid);
+}
+
+.button,
+button.button {
+  border-radius: 999px;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.07);
+  font-weight: 1000;
+}
+
+.button:hover {
+  border-color: rgba(255, 211, 106, 0.52);
+}
+
+.button.primary {
+  color: #150c04;
+  background: linear-gradient(135deg, var(--gold), var(--orange) 58%, var(--pink));
+  box-shadow: 0 16px 46px rgba(255, 107, 0, 0.22);
+}
+
+.hero-card,
+.card,
+.workspace,
+.pipeline-card {
+  border-color: var(--line);
+  border-radius: 30px;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.085), rgba(255, 255, 255, 0.035)),
+    rgba(13, 13, 16, 0.70);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(24px);
+}
+
+.tool-card.featured,
+.pipeline-card {
+  border-color: rgba(255, 211, 106, 0.34);
+}
+
+.alpha-demo,
+.canvas-stage,
+.checker {
+  border-color: rgba(255, 211, 106, 0.24);
+  background-color: #11100f;
+}
+
+.alpha-demo::before,
+.selection-box {
+  border-color: var(--gold);
+  background: rgba(255, 211, 106, 0.09);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.9), 0 0 24px rgba(255, 107, 0, 0.55);
+}
+
+input:focus,
+select:focus {
+  border-color: rgba(255, 211, 106, 0.56);
+  box-shadow: 0 0 0 4px rgba(255, 211, 106, 0.09);
+}
+
+@media (max-width: 640px) {
+  .site-header {
+    top: 8px;
+    width: calc(100% - 16px);
+    border-radius: 26px;
+  }
+}
