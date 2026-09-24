@@ -1,0 +1,153 @@
+name: Validate Quillgeist Lite
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "quillgeist-lite/**"
+      - "identity-broker/scripts/grant-google-cloud-support-access.ps1"
+      - "identity-broker/scripts/finish-google-oauth.ps1"
+      - ".github/workflows/validate-quillgeist-lite.yml"
+  pull_request:
+    paths:
+      - "quillgeist-lite/**"
+      - "identity-broker/scripts/grant-google-cloud-support-access.ps1"
+      - "identity-broker/scripts/finish-google-oauth.ps1"
+      - ".github/workflows/validate-quillgeist-lite.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Parse PowerShell scripts
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $files = @(
+            "quillgeist-lite/runner.ps1",
+            "quillgeist-lite/launch-visible.ps1",
+            "quillgeist-lite/launcher.ps1",
+            "quillgeist-lite/install.ps1",
+            "quillgeist-lite/uninstall.ps1",
+            "quillgeist-lite/service/install-service.ps1",
+            "quillgeist-lite/tasks/clintware-doctor.ps1",
+            "quillgeist-lite/tasks/ensure-c-runtime.ps1",
+            "quillgeist-lite/tasks/ensure-powershell.ps1",
+            "quillgeist-lite/tasks/auto-repair-runtime.ps1",
+            "quillgeist-lite/tasks/update-powerchatbridge.ps1",
+            "quillgeist-lite/tasks/self-update.ps1",
+            "quillgeist-lite/tasks/repair-local-service.ps1",
+            "quillgeist-lite/tasks/apply-terminal-glass.ps1",
+            "quillgeist-lite/tasks/connect-jira.ps1",
+            "quillgeist-lite/tasks/enable-admin-console.ps1",
+            "quillgeist-lite/tasks/bootstrap-admin-console.ps1",
+            "quillgeist-lite/tasks/codefeddy-access-check.ps1",
+            "quillgeist-lite/tasks/provision-codefeddy-platform.ps1",
+            "identity-broker/scripts/grant-google-cloud-support-access.ps1",
+            "identity-broker/scripts/finish-google-oauth.ps1"
+          )
+
+          foreach ($file in $files) {
+            if (-not (Test-Path $file)) {
+              throw "Missing expected file: $file"
+            }
+
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $file),
+              [ref]$tokens,
+              [ref]$errors
+            ) | Out-Null
+
+            if ($errors.Count -gt 0) {
+              $errors | Format-List *
+              throw "PowerShell parse errors in $file"
+            }
+
+            Write-Host "PARSE_OK $file"
+          }
+
+      - name: Validate task registry
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $registry = Get-Content "quillgeist-lite/tasks.json" -Raw | ConvertFrom-Json
+
+          if ($registry.version -ne 6) {
+            throw "Unexpected task registry version."
+          }
+
+          $extensions = @{
+            powershell = ".ps1"
+            python = ".py"
+            c = ".c"
+          }
+
+          foreach ($property in $registry.tasks.PSObject.Properties) {
+            $task = $property.Value
+            $runtime = [string]$task.runtime
+
+            if (-not $extensions.ContainsKey($runtime)) {
+              throw "Task $($property.Name) uses unsupported runtime '$runtime'."
+            }
+
+            $required = $extensions[$runtime]
+            if (-not ([string]$task.script).EndsWith($required,[StringComparison]::OrdinalIgnoreCase)) {
+              throw "Task $($property.Name) runtime '$runtime' must reference a $required file."
+            }
+
+            if ($task.script.Contains("..")) {
+              throw "Task $($property.Name) contains path traversal."
+            }
+
+            if (-not (Test-Path $task.script)) {
+              throw "Task $($property.Name) references missing source $($task.script)"
+            }
+
+            Write-Host "TASK_OK $($property.Name) [$runtime] -> $($task.script)"
+          }
+
+          python -m py_compile quillgeist-lite/tasks/runtime-python-check.py
+          if ($LASTEXITCODE -ne 0) {
+            throw "Python runtime check source failed py_compile."
+          }
+
+          Write-Host "PYTHON_PARSE_OK quillgeist-lite/tasks/runtime-python-check.py"
+
+
+      - name: Compile Windows health service
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $source = (Resolve-Path "quillgeist-lite/service/QuillgeistLiteHealthService.cs").Path
+          $output = [IO.Path]::GetFullPath((Join-Path $env:RUNNER_TEMP "QuillgeistLiteHealthService.exe"))
+
+          if (-not (Test-Path $source)) {
+            throw "Missing health service source: $source"
+          }
+
+          $cscCandidates = @(
+            "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe",
+            "$env:WINDIR\Microsoft.NET\Framework\v4.0.30319\csc.exe"
+          )
+          $csc = $cscCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $csc) {
+            throw "Windows .NET Framework csc.exe was not found."
+          }
+
+          & $csc /nologo /target:winexe /optimize+ /out:$output /reference:System.ServiceProcess.dll /reference:System.Runtime.Serialization.dll $source
+          if ($LASTEXITCODE -ne 0) {
+            throw "Health service compilation failed with exit code $LASTEXITCODE."
+          }
+
+          if (-not (Test-Path $output)) {
+            throw "Health service compilation did not produce an executable."
+          }
+
+          Write-Host "SERVICE_COMPILE_OK $output"

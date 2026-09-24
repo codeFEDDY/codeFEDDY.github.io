@@ -1,0 +1,23 @@
+{
+  "name": "codefeddy-identity-broker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node --check src/index.js && node --check scripts/render-wrangler.mjs && node --check scripts/provider-preflight.mjs && node --check scripts/smoke-enterprise-handoff.mjs",
+    "deploy": "wrangler deploy --config wrangler.generated.jsonc",
+    "dev": "wrangler dev --config wrangler.generated.jsonc"
+  },
+  "dependencies": {
+    "@cloudflare/workers-oauth-provider": "0.10.3",
+    "@modelcontextprotocol/server": "2.0.0-beta.5",
+    "agents": "0.20.0",
+    "oauth4webapi": "3.8.8",
+    "zod": "^4.4.3",
+    "jose": "^6.1.0"
+  },
+  "devDependencies": {
+    "wrangler": "^4.105.0"
+  }
+}
+

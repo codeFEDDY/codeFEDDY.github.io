@@ -1,0 +1,28 @@
+{
+  "product": "codefeddy",
+  "environment": "production",
+  "version": 2,
+  "repo": {
+    "identity": "codefeddy",
+    "owner": "codeFEDDY",
+    "name": "codeFEDDY.github.io",
+    "default_branch": "main",
+    "read": true,
+    "write_prefixes": [""],
+    "delete_prefixes": [""],
+    "allowed_workflows": ["deploy-codefeddy-control-plane.yml","deploy-codefeddy-identity-broker.yml","codefeddy-qq-dispatch.yml"]
+  },
+  "dns": {"allowed_names":["mcp.codefeddy.com","auth.codefeddy.com"]},
+  "capabilities": [
+    "repo.read:codeFEDDY.github.io","repo.write:*","repo.delete:*","repo.branch:create","repo.branch:read","repo.commit:status",
+    "repo.workflow:dispatch","repo.workflow:status","deployment.read","deployment.execute:codefeddy",
+    "dns.ensure:mcp.codefeddy.com","dns.ensure:auth.codefeddy.com",
+    "analytics.write:codefeddy","analytics.read:codefeddy","research.invoke","ai.invoke",
+    "flow.read:codefeddy","flow.write:codefeddy","flow.run:codefeddy",
+    "jira.read:codefeddy","jira.write:codefeddy","confluence.read:codefeddy","confluence.write:codefeddy"
+  ],
+  "deny": ["secrets.read","secrets.export","billing.manage","infrastructure.admin:*"],
+  "protected_paths": [".github/workflows/",".github/actions/","control-plane/security/","control-plane/policy/"],
+  "telemetry_namespace": "codefeddy",
+  "created_at": "2026-09-23T00:00:00.000Z"
+}

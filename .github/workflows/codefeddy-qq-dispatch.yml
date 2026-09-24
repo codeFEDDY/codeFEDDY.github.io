@@ -1,0 +1,28 @@
+name: Dispatch Quillgeist Lite Task
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "quillgeist-lite/dispatch/request.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      CONTROL_PLANE_MCP_TOKEN: ${{ secrets.CONTROL_PLANE_MCP_TOKEN }}
+      CONTROL_PLANE: https://mcp.codefeddy.com
+      REQUEST_FILE: quillgeist-lite/dispatch/request.json
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dispatch and stream Quillgeist Lite task
+        run: python3 quillgeist-lite/dispatch/relay.py
+

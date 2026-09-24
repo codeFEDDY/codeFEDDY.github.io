@@ -1,0 +1,6 @@
+{
+  "request_id": "chatgpt-qq-force-wake-reconnect-20260924-1106",
+  "task_id": "self-update",
+  "args": {},
+  "objective": "Force a fresh watchdog wake/reconnect on DRIZNET, then apply the validated current qq build: runner 1.5.1, compact Clintware eclipse popup, small inline Clintware logo first above welcome text, cache-proof startup, service recovery hardening, and independent fallback watchdog."
+}

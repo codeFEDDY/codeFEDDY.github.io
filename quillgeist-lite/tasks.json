@@ -1,0 +1,137 @@
+{
+  "version": 6,
+  "product": "CodeFEDDY qq",
+  "description": "Allowlisted local tasks dispatched by the CodeFEDDY Control Plane. PowerShell is retained for Windows-only operations; terminal/profile recovery uses Python for deterministic JSON, image generation, validation, and rollback.",
+  "runtimes": [
+    "powershell",
+    "python",
+    "c"
+  ],
+  "tasks": {
+    "clintware-doctor": {
+      "title": "Check local Clintware prerequisites",
+      "runtime": "powershell",
+      "script": "quillgeist-lite/tasks/clintware-doctor.ps1",
+      "parameters": []
+    },
+    "google-cloud-support-access": {
+      "title": "Grant the Clintware support Google account access to the existing Google Cloud project",
+      "runtime": "powershell",
+      "script": "identity-broker/scripts/grant-google-cloud-support-access.ps1",
+      "parameters": [
+        "OwnerAccount",
+        "SupportAccount",
+        "ProjectName"
+      ]
+    },
+    "finish-google-oauth": {
+      "title": "Finish Clintware Google OAuth and delegated Gmail/Calendar authorization",
+      "runtime": "powershell",
+      "script": "identity-broker/scripts/finish-google-oauth.ps1",
+      "parameters": [
+        "Repo"
+      ]
+    },
+    "python-runtime-check": {
+      "title": "Verify Python execution through Quillgeist Lite",
+      "runtime": "python",
+      "script": "quillgeist-lite/tasks/runtime-python-check.py",
+      "parameters": [
+        "Message"
+      ]
+    },
+    "c-runtime-check": {
+      "title": "Verify compiled C execution through Quillgeist Lite",
+      "runtime": "c",
+      "script": "quillgeist-lite/tasks/runtime-c-check.c",
+      "parameters": [
+        "Message"
+      ]
+    },
+    "ensure-c-runtime": {
+      "title": "Ensure an approved C compiler is available on Windows",
+      "runtime": "powershell",
+      "script": "quillgeist-lite/tasks/ensure-c-runtime.ps1",
+      "parameters": []
+    },
+    "self-update": {
+      "title": "Update Quillgeist Lite runner from the maintained Clintware repository and restart it safely",
+      "runtime": "powershell",
+      "script": "quillgeist-lite/tasks/self-update.ps1",
+      "parameters": []
+    },
+    "apply-terminal-glass": {
+      "title": "Rebuild and verify the Quillgeist Lite Windows Terminal profile and retro DOS boot artwork with Python",
+      "runtime": "python",
+      "script": "quillgeist-lite/tools/terminal_repair.py",
+      "parameters": []
+    },
+    "connect-jira": {
+      "title": "Connect Jira to the CodeFEDDY Control Plane with Atlassian OAuth",
+      "runtime": "powershell",
+      "script": "quillgeist-lite/tasks/connect-jira.ps1",
+      "parameters": []
+    },
+    "enable-admin-console": {
+      "title": "Upgrade qq to the supervised interactive admin console",
+      "runtime": "powershell",
+      "script": "quillgeist-lite/tasks/enable-admin-console.ps1",
+      "parameters": []
+    },
+    "bootstrap-admin-console": {
+      "title": "Install or repair the qq service and reopen the supervised admin console",
+      "runtime": "powershell",
+      "script": "quillgeist-lite/tasks/bootstrap-admin-console.ps1",
+      "parameters": []
+    },
+    "repair-local-service": {
+      "title": "Repair the qq Windows health service and stale scheduled-task recovery",
+      "runtime": "powershell",
+      "script": "quillgeist-lite/tasks/repair-local-service.ps1",
+      "parameters": []
+    },
+    "gimp-clintware-eclipse": {
+      "title": "Install the deterministic Clintware eclipse GIMP plug-in, render a fresh editable logo, save XCF/PNG, and show it in GIMP",
+      "runtime": "powershell",
+      "script": "quillgeist-lite/tasks/gimp-clintware-eclipse.ps1",
+      "parameters": []
+    },
+    "codefeddy-access-check": {
+      "title": "Check local CodeFEDDY GitHub write access and Cloudflare/Wrangler authentication",
+      "runtime": "powershell",
+      "script": "quillgeist-lite/tasks/codefeddy-access-check.ps1",
+      "parameters": []
+    },
+    "provision-codefeddy-platform": {
+      "title": "Provision the isolated CodeFEDDY control plane and dedicated qq in codeFEDDY/codeFEDDY.github.io",
+      "runtime": "powershell",
+      "script": "quillgeist-lite/tasks/provision-codefeddy-platform.ps1",
+      "parameters": []
+    },
+    "emergency-recover": {
+      "title": "Stop a qq restart loop, refresh canonical local files, rebuild the terminal profile, and verify a live runner",
+      "runtime": "python",
+      "script": "quillgeist-lite/tools/emergency_recover.py",
+      "parameters": []
+    },
+    "ensure-powershell": {
+      "title": "Install or upgrade PowerShell 7 and return the current pwsh runtime",
+      "runtime": "powershell",
+      "script": "quillgeist-lite/tasks/ensure-powershell.ps1",
+      "parameters": []
+    },
+    "update-powerchatbridge": {
+      "title": "Refresh the installed private PowerChatBridge module and restart detected bridge instances",
+      "runtime": "powershell",
+      "script": "quillgeist-lite/tasks/update-powerchatbridge.ps1",
+      "parameters": []
+    },
+    "restart-window": {
+      "title": "Restart the visible Quillgeist Lite window and rerun the maintained launcher splash",
+      "runtime": "powershell",
+      "script": "quillgeist-lite/tasks/restart-window.ps1",
+      "parameters": []
+    }
+  }
+}
+

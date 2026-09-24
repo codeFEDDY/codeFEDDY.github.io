@@ -1,0 +1,216 @@
+name: Deploy CodeFEDDY Control Plane
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "control-plane/**"
+      - ".github/workflows/deploy-control-plane.yml"
+  pull_request:
+    paths:
+      - "control-plane/**"
+      - ".github/workflows/deploy-control-plane.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codefeddy-control-plane
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install control-plane dependencies
+        run: npm install --prefix control-plane --ignore-scripts --no-audit --no-fund
+
+      - name: Syntax check
+        run: npm run check --prefix control-plane
+
+      - name: Render validation config
+        run: node control-plane/scripts/render-wrangler.mjs 00000000000000000000000000000000
+
+      - name: Wrangler dry run
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx --prefix control-plane wrangler deploy --dry-run --config control-plane/wrangler.generated.jsonc
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install control-plane dependencies
+        run: npm install --prefix control-plane --ignore-scripts --no-audit --no-fund
+
+      - name: Ensure Control Plane OAuth KV namespace
+        id: oauth_kv
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          title="codefeddy-control-plane-oauth"
+          api="https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/storage/kv/namespaces"
+          list=$(curl --fail-with-body -sS "$api?per_page=100&order=title&direction=asc"             -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}")
+          id=$(python3 -c 'import json,sys; d=json.load(sys.stdin); title=sys.argv[1]; print(next((x.get("id","") for x in d.get("result",[]) if x.get("title")==title),""))' "$title" <<< "$list")
+          if [ -z "$id" ]; then
+            created=$(curl --fail-with-body -sS -X POST "$api"               -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}"               -H 'Content-Type: application/json'               --data "{\"title\":\"${title}\"}")
+            id=$(python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("result",{}).get("id",""))' <<< "$created")
+          fi
+          if ! [[ "$id" =~ ^[A-Fa-f0-9]{32}$ ]]; then
+            echo "Could not resolve/create Control Plane OAuth KV namespace." >&2
+            exit 1
+          fi
+          echo "namespace_id=$id" >> "$GITHUB_OUTPUT"
+          echo "Control Plane OAuth KV ready: $title"
+
+      - name: Render production config
+        run: node control-plane/scripts/render-wrangler.mjs "${{ steps.oauth_kv.outputs.namespace_id }}"
+
+      - name: Deploy control plane
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: "4"
+          command: deploy --cwd control-plane --config wrangler.generated.jsonc
+
+      - name: Sync central Control Plane secrets
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CONTROL_PLANE_MCP_TOKEN: ${{ secrets.CONTROL_PLANE_MCP_TOKEN }}
+          CONTROL_PLANE_ADMIN_TOKEN: ${{ secrets.CONTROL_PLANE_ADMIN_TOKEN }}
+          GITHUB_CONTROL_PLANE_TOKEN: ${{ secrets.CLINTWARE_GH_CONTROL_PLANE_TOKEN }}
+          GITHUB_TOKEN_CODEFEDDY: ${{ secrets.CODEFEDDY_GH_CONTROL_PLANE_TOKEN }}
+          EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
+          ATLASSIAN_CLIENT_ID: ${{ secrets.ATLASSIAN_CLIENT_ID }}
+          ATLASSIAN_CLIENT_SECRET: ${{ secrets.ATLASSIAN_CLIENT_SECRET }}
+          JIRA_TOKEN_ENCRYPTION_KEY: ${{ secrets.JIRA_TOKEN_ENCRYPTION_KEY }}
+        run: |
+          set -euo pipefail
+          cd control-plane
+
+          put_secret() {
+            local name="$1"
+            local value="$2"
+            if [ -n "$value" ]; then
+              printf '%s' "$value" | npx wrangler secret put "$name" --config wrangler.generated.jsonc >/dev/null
+              echo "$name configured"
+            else
+              echo "$name not present in repository secrets; leaving adapter disabled"
+            fi
+          }
+
+          # The existing Clintware Cloudflare deployment credential stays inside
+          # Clintware and can be reused by the Control Plane for allowlisted DNS
+          # operations. It is never returned through MCP or the application API.
+          put_secret CLOUDFLARE_CONTROL_PLANE_TOKEN "$CLOUDFLARE_API_TOKEN"
+
+          zone_json=$(curl --fail-with-body -sS \
+            "https://api.cloudflare.com/client/v4/zones?name=codefeddy.com&status=active" \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}")
+          zone_id=$(python3 -c 'import json,sys; d=json.load(sys.stdin); r=d.get("result",[]); print(r[0].get("id","") if d.get("success") and r else "")' <<< "$zone_json")
+          if [ -n "$zone_id" ]; then
+            put_secret CLOUDFLARE_ZONE_ID "$zone_id"
+          else
+            echo "Could not resolve Clintware zone ID; DNS adapter remains disabled"
+          fi
+
+          put_secret CONTROL_PLANE_MCP_TOKEN "$CONTROL_PLANE_MCP_TOKEN"
+          put_secret CONTROL_PLANE_ADMIN_TOKEN "$CONTROL_PLANE_ADMIN_TOKEN"
+          put_secret GITHUB_CONTROL_PLANE_TOKEN "$GITHUB_CONTROL_PLANE_TOKEN"
+          # Per-identity aliases let one Control Plane route independent GitHub accounts.
+          # Keep the original secret during migration and mirror it to the clintkosh identity.
+          put_secret GITHUB_TOKEN_CLINTKOSH "$GITHUB_CONTROL_PLANE_TOKEN"
+          put_secret GITHUB_TOKEN_CODEFEDDY "$GITHUB_TOKEN_CODEFEDDY"
+          put_secret EXA_API_KEY "$EXA_API_KEY"
+          put_secret ATLASSIAN_CLIENT_ID "$ATLASSIAN_CLIENT_ID"
+          put_secret ATLASSIAN_CLIENT_SECRET "$ATLASSIAN_CLIENT_SECRET"
+          put_secret JIRA_TOKEN_ENCRYPTION_KEY "$JIRA_TOKEN_ENCRYPTION_KEY"
+
+      - name: Verify mcp.codefeddy.com health
+        run: |
+          set -euo pipefail
+          ready=0
+          for i in $(seq 1 24); do
+            body=$(curl -fsS --connect-timeout 5 --max-time 20 https://mcp.codefeddy.com/health || true)
+            if echo "$body" | grep -Fq '"service":"CodeFEDDY Control Plane"'; then
+              echo "$body"
+              ready=1
+              break
+            fi
+            echo "Waiting for CodeFEDDY Control Plane ($i/24)"
+            sleep 5
+          done
+          test "$ready" = "1"
+          echo "$body" | grep -Fq '"mcp_oauth":{"configured":true'
+
+      - name: Verify ChatGPT MCP OAuth discovery
+        shell: bash
+        run: |
+          set -euo pipefail
+          resource=$(curl -fsS --retry 6 --retry-delay 2 --retry-all-errors https://mcp.codefeddy.com/.well-known/oauth-protected-resource/mcp)
+          authmeta=$(curl -fsS --retry 6 --retry-delay 2 --retry-all-errors https://mcp.codefeddy.com/.well-known/oauth-authorization-server)
+          identity=$(curl -fsS --retry 6 --retry-delay 2 --retry-all-errors https://auth.codefeddy.com/client-config/control-plane-mcp)
+          RESOURCE_JSON="$resource" AUTH_JSON="$authmeta" IDENTITY_JSON="$identity" python3 - <<'PY'
+          import json, os
+          resource=json.loads(os.environ["RESOURCE_JSON"])
+          auth=json.loads(os.environ["AUTH_JSON"])
+          identity=json.loads(os.environ["IDENTITY_JSON"])
+          assert resource["resource"] == "https://mcp.codefeddy.com/mcp", resource
+          assert "https://mcp.codefeddy.com" in resource["authorization_servers"], resource
+          assert auth["issuer"] == "https://mcp.codefeddy.com", auth
+          assert auth["authorization_endpoint"] == "https://mcp.codefeddy.com/oauth/authorize", auth
+          assert auth["token_endpoint"] == "https://mcp.codefeddy.com/oauth/token", auth
+          assert auth.get("client_id_metadata_document_supported") is True, auth
+          assert "S256" in auth.get("code_challenge_methods_supported", []), auth
+          assert identity["redirect_uri"] == "https://mcp.codefeddy.com/oauth/callback", identity
+          assert identity["pkce"] == "S256", identity
+          print("ChatGPT MCP OAuth discovery and upstream Clintware identity callback verified.")
+          PY
+
+          curl -sS -o /tmp/mcp-oauth-unauth.json -D /tmp/mcp-oauth-unauth.headers             -X POST https://mcp.codefeddy.com/mcp             -H 'content-type: application/json'             --data '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2026-07-28","capabilities":{},"clientInfo":{"name":"oauth-smoke","version":"1"}}}'
+          status=$(awk 'NR==1{print $2}' /tmp/mcp-oauth-unauth.headers)
+          test "$status" = "401"
+          grep -Eqi '^www-authenticate:.*resource_metadata=.*oauth-protected-resource/mcp' /tmp/mcp-oauth-unauth.headers
+          echo "Unauthenticated MCP request correctly advertises OAuth linking."
+
+      - name: Verify public Control Plane landing page
+        run: |
+          set -euo pipefail
+          page=$(curl -fsS --connect-timeout 5 --max-time 20 https://mcp.codefeddy.com/)
+          echo "$page" | grep -Fq 'CodeFEDDY Control Plane'
+          echo "$page" | grep -Fq 'Capabilities should outlive the model using them.'
+          echo "$page" | grep -Fq 'The browser page is informational. The control surface is authenticated.'
+          echo 'mcp.codefeddy.com public landing page is live.'
+
+      - name: Verify admin console boundary
+        run: |
+          set -euo pipefail
+          page=$(curl -fsS --connect-timeout 5 --max-time 20 https://mcp.codefeddy.com/admin)
+          echo "$page" | grep -Fq 'Clintware Admin'
+          code=$(curl -sS --connect-timeout 5 --max-time 20 -o /tmp/admin-api.json -w '%{http_code}' https://mcp.codefeddy.com/admin/api/overview)
+          test "$code" = "401"
+          grep -Fq '"error":"unauthorized"' /tmp/admin-api.json
+          cfg=$(curl -fsS --connect-timeout 5 --max-time 20 https://auth.codefeddy.com/client-config/control-plane-admin)
+          echo "$cfg" | grep -Fq '"redirect_uri":"https://mcp.codefeddy.com/admin/callback"'
+          echo "$cfg" | grep -Fq '"client_id":"https://auth.codefeddy.com/client/clintware-web"'
+          echo 'Control Plane admin console boundary and central OAuth config verified.'
+
+      - name: Report adapter configuration
+        run: |
+          body=$(curl -fsS https://mcp.codefeddy.com/health)
+          echo "$body"
+          echo "GitHub/Cloudflare/research credentials remain centralized in Clintware; external MCP clients receive only the scoped Control Plane credential."
+
+

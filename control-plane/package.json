@@ -1,0 +1,21 @@
+{
+  "name": "codefeddy-control-plane",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node --check src/flow.js && node --check src/admin.js && node --check src/jira.js && node --check src/confluence.js && node --check src/index.js && node --check src/mcp-oauth.js && node --check src/entry.js && node --check scripts/render-wrangler.mjs && node --test test/*.test.mjs",
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "2.0.0-beta.5",
+    "agents": "0.20.0",
+    "zod": "^4.0.0",
+    "@cloudflare/workers-oauth-provider": "0.10.3"
+  },
+  "devDependencies": {
+    "wrangler": "^4.31.0"
+  }
+}
+

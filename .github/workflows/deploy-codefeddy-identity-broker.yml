@@ -1,0 +1,348 @@
+name: Deploy CodeFEDDY Identity Broker
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "identity-broker/**"
+      - "skills/oauth-identity-broker/**"
+      - ".github/workflows/deploy-identity-broker.yml"
+  pull_request:
+    paths:
+      - "identity-broker/**"
+      - "skills/oauth-identity-broker/**"
+      - ".github/workflows/deploy-identity-broker.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codefeddy-identity-broker
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install identity broker dependencies
+        run: npm install --prefix identity-broker --ignore-scripts --no-audit --no-fund
+
+      - name: Syntax check
+        run: npm run check --prefix identity-broker
+
+      - name: PowerShell helper parse check
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            "identity-broker/scripts/activate-google-signin.ps1",
+            [ref]$tokens,
+            [ref]$errors
+          ) | Out-Null
+          if ($errors.Count -gt 0) {
+            $errors | ForEach-Object { Write-Error $_.Message }
+            exit 1
+          }
+          Write-Host "activate-google-signin.ps1 parses cleanly."
+
+      - name: Render validation config
+        run: node identity-broker/scripts/render-wrangler.mjs 00000000000000000000000000000000
+
+      - name: Wrangler dry run
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx --prefix identity-broker wrangler deploy --dry-run --config identity-broker/wrangler.generated.jsonc
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: validate
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CONTROL_PLANE_MCP_TOKEN: ${{ secrets.CONTROL_PLANE_MCP_TOKEN }}
+      GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+      MICROSOFT_ENTRA_CLIENT_ID: ${{ secrets.MICROSOFT_ENTRA_CLIENT_ID }}
+      MICROSOFT_ENTRA_CLIENT_SECRET: ${{ secrets.MICROSOFT_ENTRA_CLIENT_SECRET }}
+      MICROSOFT_ENTRA_TENANT: ${{ vars.MICROSOFT_ENTRA_TENANT }}
+      MICROSOFT_ENTRA_TOKEN_AUTH_METHOD: ${{ vars.MICROSOFT_ENTRA_TOKEN_AUTH_METHOD }}
+      OKTA_OIDC_ISSUER: ${{ secrets.OKTA_OIDC_ISSUER }}
+      OKTA_OIDC_CLIENT_ID: ${{ secrets.OKTA_OIDC_CLIENT_ID }}
+      OKTA_OIDC_CLIENT_SECRET: ${{ secrets.OKTA_OIDC_CLIENT_SECRET }}
+      OKTA_OIDC_TOKEN_AUTH_METHOD: ${{ vars.OKTA_OIDC_TOKEN_AUTH_METHOD }}
+      AUTH0_OIDC_ISSUER: ${{ secrets.AUTH0_OIDC_ISSUER }}
+      AUTH0_OIDC_CLIENT_ID: ${{ secrets.AUTH0_OIDC_CLIENT_ID }}
+      AUTH0_OIDC_CLIENT_SECRET: ${{ secrets.AUTH0_OIDC_CLIENT_SECRET }}
+      PINGONE_OIDC_ISSUER: ${{ secrets.PINGONE_OIDC_ISSUER }}
+      PINGONE_OIDC_CLIENT_ID: ${{ secrets.PINGONE_OIDC_CLIENT_ID }}
+      PINGONE_OIDC_CLIENT_SECRET: ${{ secrets.PINGONE_OIDC_CLIENT_SECRET }}
+      GENERIC_OIDC_ISSUER: ${{ secrets.GENERIC_OIDC_ISSUER }}
+      GENERIC_OIDC_CLIENT_ID: ${{ secrets.GENERIC_OIDC_CLIENT_ID }}
+      GENERIC_OIDC_CLIENT_SECRET: ${{ secrets.GENERIC_OIDC_CLIENT_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check deployment prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}"
+          test -n "${CLOUDFLARE_ACCOUNT_ID:-}"
+          test -n "${GOOGLE_OAUTH_CLIENT_SECRET:-}"
+          echo "Google sign-in uses the canonical public Web client ID and signed OIDC ID tokens."
+          echo "The client secret is retained only for the separate delegated Gmail/Calendar grant flow."
+
+      - name: Install identity broker dependencies
+        run: npm install --prefix identity-broker --ignore-scripts --no-audit --no-fund
+
+      - name: Preflight Microsoft and Okta OIDC configuration
+        run: node identity-broker/scripts/provider-preflight.mjs
+
+      - name: Ensure OAuth KV namespace
+        id: kv
+        shell: bash
+        run: |
+          set -euo pipefail
+          title="clintware-identity-oauth"
+          api="https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/storage/kv/namespaces"
+          list=$(curl --fail-with-body -sS "$api?per_page=100&order=title&direction=asc" \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}")
+          id=$(python3 -c 'import json,sys; d=json.load(sys.stdin); title=sys.argv[1]; print(next((x.get("id","") for x in d.get("result",[]) if x.get("title")==title),""))' "$title" <<< "$list")
+          if [ -z "$id" ]; then
+            created=$(curl --fail-with-body -sS -X POST "$api" \
+              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+              -H 'Content-Type: application/json' \
+              --data "{\"title\":\"${title}\"}")
+            id=$(python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("result",{}).get("id",""))' <<< "$created")
+          fi
+          if ! [[ "$id" =~ ^[A-Fa-f0-9]{32}$ ]]; then
+            echo "Could not resolve/create OAuth KV namespace. Ensure the Cloudflare token has Workers KV Storage Write." >&2
+            exit 1
+          fi
+          echo "namespace_id=$id" >> "$GITHUB_OUTPUT"
+          echo "OAuth KV namespace ready: $title"
+
+      - name: Render production config
+        run: node identity-broker/scripts/render-wrangler.mjs "${{ steps.kv.outputs.namespace_id }}"
+
+      - name: Deploy identity broker
+        run: npx --prefix identity-broker wrangler deploy --config identity-broker/wrangler.generated.jsonc
+
+      - name: Verify auth custom domain ownership
+        shell: bash
+        run: |
+          set -euo pipefail
+          domains=$(curl --fail-with-body -sS \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/domains?hostname=auth.codefeddy.com" \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}")
+          python3 -c 'import json,sys; d=json.load(sys.stdin); r=d.get("result",[]); assert d.get("success") is True and len(r)==1,d; x=r[0]; assert x.get("hostname")=="auth.codefeddy.com" and x.get("service")=="codefeddy-identity-broker",x; print("Identity custom domain ready:",x.get("hostname"),"->",x.get("service"))' <<< "$domains"
+
+      - name: Sync identity broker secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd identity-broker
+          put_secret() {
+            local name="$1"
+            local value="$2"
+            if [ -n "$value" ]; then
+              printf '%s' "$value" | npx wrangler secret put "$name" --config wrangler.generated.jsonc >/dev/null
+              echo "$name configured"
+            else
+              echo "$name not configured; leaving related feature inactive"
+            fi
+          }
+
+          sync_optional_secret() {
+            local name="$1"
+            local value="$2"
+            if [ -n "$value" ]; then
+              printf '%s' "$value" | npx wrangler secret put "$name" --config wrangler.generated.jsonc >/dev/null
+              echo "$name configured"
+            else
+              printf 'y\n' | npx wrangler secret delete "$name" --config wrangler.generated.jsonc >/dev/null 2>&1 || true
+              echo "$name absent; any stale Worker secret was cleared"
+            fi
+          }
+          put_secret CONTROL_PLANE_MCP_TOKEN "$CONTROL_PLANE_MCP_TOKEN"
+          put_secret GOOGLE_OAUTH_CLIENT_SECRET "$GOOGLE_OAUTH_CLIENT_SECRET"
+          google_bridge_secret=$(printf 'clintware-google-delegated:%s' "$CLOUDFLARE_API_TOKEN" | sha256sum | cut -d' ' -f1)
+          put_secret GOOGLE_DELEGATED_BRIDGE_SECRET "$google_bridge_secret"
+          sync_optional_secret MICROSOFT_ENTRA_CLIENT_ID "$MICROSOFT_ENTRA_CLIENT_ID"
+          sync_optional_secret MICROSOFT_ENTRA_CLIENT_SECRET "$MICROSOFT_ENTRA_CLIENT_SECRET"
+          sync_optional_secret MICROSOFT_ENTRA_TENANT "$MICROSOFT_ENTRA_TENANT"
+          sync_optional_secret MICROSOFT_ENTRA_TOKEN_AUTH_METHOD "$MICROSOFT_ENTRA_TOKEN_AUTH_METHOD"
+          sync_optional_secret OKTA_OIDC_ISSUER "$OKTA_OIDC_ISSUER"
+          sync_optional_secret OKTA_OIDC_CLIENT_ID "$OKTA_OIDC_CLIENT_ID"
+          sync_optional_secret OKTA_OIDC_CLIENT_SECRET "$OKTA_OIDC_CLIENT_SECRET"
+          sync_optional_secret OKTA_OIDC_TOKEN_AUTH_METHOD "$OKTA_OIDC_TOKEN_AUTH_METHOD"
+          sync_optional_secret AUTH0_OIDC_ISSUER "$AUTH0_OIDC_ISSUER"
+          sync_optional_secret AUTH0_OIDC_CLIENT_ID "$AUTH0_OIDC_CLIENT_ID"
+          sync_optional_secret AUTH0_OIDC_CLIENT_SECRET "$AUTH0_OIDC_CLIENT_SECRET"
+          sync_optional_secret PINGONE_OIDC_ISSUER "$PINGONE_OIDC_ISSUER"
+          sync_optional_secret PINGONE_OIDC_CLIENT_ID "$PINGONE_OIDC_CLIENT_ID"
+          sync_optional_secret PINGONE_OIDC_CLIENT_SECRET "$PINGONE_OIDC_CLIENT_SECRET"
+          sync_optional_secret GENERIC_OIDC_ISSUER "$GENERIC_OIDC_ISSUER"
+          sync_optional_secret GENERIC_OIDC_CLIENT_ID "$GENERIC_OIDC_CLIENT_ID"
+          sync_optional_secret GENERIC_OIDC_CLIENT_SECRET "$GENERIC_OIDC_CLIENT_SECRET"
+
+      - name: Verify Google recognizes upstream OAuth client
+        shell: bash
+        run: |
+          set -euo pipefail
+          client_id='378690450945-nnb0d9st2d9s5lj2alt7q1hdm3pfige7.apps.googleusercontent.com'
+          probe_url="https://accounts.google.com/o/oauth2/v2/auth?client_id=${client_id}&redirect_uri=https%3A%2F%2Fauth.codefeddy.com%2Fcallback&response_type=id_token&response_mode=form_post&scope=openid%20email%20profile&state=clintware-ci-preflight&nonce=clintware-ci-preflight"
+          curl -LsS --connect-timeout 8 --max-time 30 "$probe_url" -o /tmp/google-oauth-preflight.html
+          if grep -Eqi 'OAuth client was not found|invalid_client|deleted_client|disabled_client' /tmp/google-oauth-preflight.html; then
+            echo "Google rejected the canonical Clintware Web client ID." >&2
+            exit 1
+          fi
+          echo "Google recognizes the canonical Clintware Web client ID."
+
+      - name: Verify identity broker
+        shell: bash
+        run: |
+          set -euo pipefail
+          ready=0
+          for i in $(seq 1 24); do
+            body=$(curl -fsS --connect-timeout 5 --max-time 20 https://auth.codefeddy.com/health || true)
+            if echo "$body" | grep -Fq '"service":"CodeFEDDY Identity Broker"' \
+              && echo "$body" | grep -Fq '"version":"2026-09-23.11"'; then
+              echo "$body"
+              ready=1
+              break
+            fi
+            echo "Waiting for CodeFEDDY Identity Broker ($i/24)"
+            sleep 5
+          done
+          test "$ready" = "1"
+          body=$(curl -fsS --connect-timeout 5 --max-time 20 https://auth.codefeddy.com/health)
+          echo "$body" | grep -Fq '"configured":true'
+          echo "$body" | grep -Fq '"google_secret_required":false'
+          echo "$body" | grep -Fq '"google_mode":"oidc-id-token-form-post"'
+          echo "$body" | grep -Fq '"upstream_identity_providers"'
+          echo "$body" | grep -Fq '"id":"microsoft"'
+          echo "$body" | grep -Fq '"id":"okta"'
+          echo "$body" | grep -Fq '"id":"auth0"'
+          echo "$body" | grep -Fq '"id":"pingone"'
+          echo "$body" | grep -Fq '"id":"oidc"'
+          echo "$body" | grep -Fq '"version":"2026-09-23.11"'
+          echo "Live identity broker version 2026-09-23.11 verified."
+          echo "Clintware Google sign-in is ACTIVE without a Google client secret."
+          delegated=$(curl -fsS --retry 6 --retry-delay 2 --retry-all-errors https://auth.codefeddy.com/delegated/google/status)
+          echo "$delegated" | grep -Fq '"connected":'
+          echo "Delegated Google grant endpoint is live."
+          rm -f /tmp/google-delegated-start.headers
+          curl -sS -o /dev/null -D /tmp/google-delegated-start.headers https://auth.codefeddy.com/delegated/google/start
+          delegated_status=$(awk 'NR==1{print $2}' /tmp/google-delegated-start.headers)
+          test "$delegated_status" = "302"
+          delegated_location=$(awk 'BEGIN{IGNORECASE=1}/^location:/{sub(/^[^:]+:[[:space:]]*/,"");gsub(/\r/,"");print;exit}' /tmp/google-delegated-start.headers)
+          echo "$delegated_location" | grep -Eq '^https://accounts\.google\.com/'
+          echo "$delegated_location" | grep -Fq 'access_type=offline'
+          echo "$delegated_location" | grep -Fq 'code_challenge='
+          echo "$delegated_location" | grep -Eq 'calendar(\.events|\.freebusy|%2Fcalendar)'
+          echo "One-click delegated Google consent handoff verified."
+
+      - name: Verify central first-party Clintware client
+        shell: bash
+        run: |
+          set -euo pipefail
+          mail=$(curl -fsS --retry 6 --retry-delay 2 --retry-all-errors https://auth.codefeddy.com/client-config/mail)
+          n7=$(curl -fsS --retry 6 --retry-delay 2 --retry-all-errors https://auth.codefeddy.com/client-config/neuron7-case)
+          admin=$(curl -fsS --retry 6 --retry-delay 2 --retry-all-errors https://auth.codefeddy.com/client-config/control-plane-admin)
+          mcp=$(curl -fsS --retry 6 --retry-delay 2 --retry-all-errors https://auth.codefeddy.com/client-config/control-plane-mcp)
+          MAIL_JSON="$mail" N7_JSON="$n7" ADMIN_JSON="$admin" MCP_JSON="$mcp" python3 - <<'PY'
+          import json, os
+          mail=json.loads(os.environ["MAIL_JSON"])
+          n7=json.loads(os.environ["N7_JSON"])
+          admin=json.loads(os.environ["ADMIN_JSON"])
+          mcp=json.loads(os.environ["MCP_JSON"])
+          assert mail["client_id"] == n7["client_id"] == admin["client_id"] == mcp["client_id"], (mail,n7,admin,mcp)
+          assert mail["client_name"] == "Clintware Web", mail
+          assert n7["client_name"] == "Clintware Web", n7
+          assert n7["allowed_email_domains"] == ["neuron7.ai"], n7
+          assert "neuron7-case:read" in n7["application_context"], n7
+          assert "neuron7-case:operator" in n7["application_context"], n7
+          assert n7["allowed_identity_providers"] == ["google","microsoft","okta","auth0","pingone","oidc"], n7
+          configured=[x["id"] for x in n7["configured_identity_providers"]]
+          assert "google" in configured, n7
+          assert mail["allowed_identity_providers"] == ["google"], mail
+          assert admin["allowed_identity_providers"] == ["google"], admin
+          print("Federated provider policy verified for Neuron7. Configured providers:", configured)
+          assert mail["redirect_uri"] == "https://mail.codefeddy.com/callback", mail
+          assert n7["redirect_uri"] == "https://n7crm.codefeddy.com/auth/callback", n7
+          assert admin["redirect_uri"] == "https://mcp.codefeddy.com/admin/callback", admin
+          assert mcp["redirect_uri"] == "https://mcp.codefeddy.com/oauth/callback", mcp
+          assert mcp["allowed_identity_providers"] == ["google"], mcp
+          assert mail["pkce"] == "S256" and n7["pkce"] == "S256" and admin["pkce"] == "S256" and mcp["pkce"] == "S256"
+          assert mail["client_model"] == "central-first-party-cimd"
+          assert n7["client_model"] == "central-first-party-cimd"
+          assert admin["client_model"] == "central-first-party-cimd"
+          assert mail["client_id"] == "https://auth.codefeddy.com/client/clintware-web"
+          assert n7["client_id"] == "https://auth.codefeddy.com/client/clintware-web"
+          print("Central Clintware OAuth CIMD client verified for mail + neuron7-case:", mail["client_id"])
+          PY
+          metadata=$(curl -fsS --retry 6 --retry-delay 2 --retry-all-errors https://auth.codefeddy.com/client/clintware-web)
+          METADATA_JSON="$metadata" python3 - <<'PY'
+          import json, os
+          m=json.loads(os.environ["METADATA_JSON"])
+          assert m["client_id"] == "https://auth.codefeddy.com/client/clintware-web", m
+          assert m["client_name"] == "Clintware Web", m
+          assert m["token_endpoint_auth_method"] == "none", m
+          assert "https://mail.codefeddy.com/callback" in m["redirect_uris"], m
+          assert "https://n7crm.codefeddy.com/auth/callback" in m["redirect_uris"], m
+          assert "https://mcp.codefeddy.com/admin/callback" in m["redirect_uris"], m
+          assert "https://mcp.codefeddy.com/oauth/callback" in m["redirect_uris"], m
+          print("CIMD metadata document verified, including ChatGPT MCP callback.")
+          PY
+
+      - name: Verify branded stateless authorization handoff
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f /tmp/cw-cookies /tmp/cw-consent.html /tmp/cw-post-headers
+          auth='https://auth.codefeddy.com/authorize?response_type=code&client_id=https%3A%2F%2Fauth.codefeddy.com%2Fclient%2Fclintware-web&redirect_uri=https%3A%2F%2Fn7crm.codefeddy.com%2Fauth%2Fcallback&scope=identity%20email%20profile&state=ci-smoke&code_challenge=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&code_challenge_method=S256&resource=https%3A%2F%2Fauth.codefeddy.com%2Fuserinfo'
+          curl -fsS --retry 6 --retry-delay 2 --retry-all-errors -D /tmp/cw-consent-headers -c /tmp/cw-cookies "$auth" -o /tmp/cw-consent.html
+          grep -Eqi "^content-security-policy:.*form-action 'self' https://accounts\\.google\\.com" /tmp/cw-consent-headers
+          grep -Fq 'class="eclipse"' /tmp/cw-consent.html
+          grep -Fq 'Clintware Identity' /tmp/cw-consent.html
+          grep -Fq 'Continue with Google' /tmp/cw-consent.html
+          echo 'Browser CSP permits the same-origin consent POST to redirect to Google.'
+          readarray -t values < <(python3 - <<'PY'
+          import html,re
+          s=open('/tmp/cw-consent.html',encoding='utf-8').read()
+          for name in ('transaction','csrf'):
+              m=re.search(r'name="'+name+r'" value="([^"]+)"',s)
+              assert m, name
+              print(html.unescape(m.group(1)))
+          PY
+          )
+          transaction="${values[0]}"
+          csrf="${values[1]}"
+          curl -sS -o /dev/null -D /tmp/cw-post-headers -b /tmp/cw-cookies \
+            --data-urlencode "transaction=$transaction" \
+            --data-urlencode "csrf=$csrf" \
+            --data-urlencode 'decision=approve' \
+            https://auth.codefeddy.com/authorize
+          status=$(awk 'NR==1{print $2}' /tmp/cw-post-headers)
+          test "$status" = "302"
+          location=$(awk 'BEGIN{IGNORECASE=1}/^location:/{sub(/^[^:]+:[[:space:]]*/,"");gsub(/\r/,"");print;exit}' /tmp/cw-post-headers)
+          echo "$location" | grep -Eq '^https://accounts\.google\.com/'
+          echo "$location" | grep -Fq 'state='
+          echo "$location" | grep -Fq 'response_type=id_token'
+          echo "$location" | grep -Fq 'response_mode=form_post'
+          if echo "$location" | grep -Fq 'client_secret='; then
+            echo "Google client secret unexpectedly leaked into authorization URL." >&2
+            exit 1
+          fi
+          echo 'Branded stateless Google ID-token handoff verified without a client secret.'
+
+      - name: Verify Microsoft and Okta authorization handoffs
+        run: node identity-broker/scripts/smoke-enterprise-handoff.mjs
+
+
